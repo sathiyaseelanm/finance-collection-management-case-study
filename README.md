@@ -1,4 +1,6 @@
-# Finance and Daily Collection Management — Case Study
+# Finance and Daily Collection Management
+
+## Project Case Study
 
 A full-stack application for managing customers, loans, and daily collections, with a React web interface and a Flutter mobile app for field agents.
 
