@@ -122,6 +122,18 @@ PostgreSQL stores application data through Spring Data JPA and Hibernate. The mo
 - Offline collection queue and synchronization
 - Automated collection-service tests
 
+## Testing and Validation
+
+The backend includes collection-service unit tests using JUnit 5, Mockito, and AssertJ, with mocked repositories.
+
+The Learning Academy module includes engine tests and a content validator using Node.js's built-in test runner.
+
+### Current Coverage Limits
+
+- Backend automated tests focus on the collection service.
+- Automated frontend tests currently cover the Learning Academy module.
+- Broader integration and end-to-end testing remain areas for improvement.
+
 ## My Contribution
 
 Handled requirements, application design, backend and frontend development, mobile functionality, testing, deployment, and server maintenance.
