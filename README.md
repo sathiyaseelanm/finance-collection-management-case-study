@@ -77,10 +77,29 @@ Daily collection operations need consistent records of loans, payments, outstand
 | Build and deployment | Maven, shell and Windows batch scripts |
 
 ## Architecture
+```mermaid
+flowchart TD
+    Web["React Web Application"]
+    Mobile["Flutter Mobile Application"]
+    Local["SQLite Offline Collection Queue"]
+    API["Spring Boot REST API"]
+    Security["Spring Security and JWT"]
+    Services["Business Service Layer"]
+    Persistence["Spring Data JPA and Hibernate"]
+    DB["PostgreSQL"]
 
-The React web application and Flutter mobile application communicate with a Spring Boot REST API. The backend uses service and repository layers to manage business rules and persist data in PostgreSQL.
+    Web -->|"HTTPS requests"| API
+    Mobile -->|"HTTPS requests and synchronization"| API
+    Mobile <-->|"Offline collections"| Local
+    API --> Security
+    Security --> Services
+    Services --> Persistence
+    Persistence --> DB
+```
 
-The mobile application maintains a local collection queue for offline operation and synchronizes it when connectivity returns.
+The React web application and Flutter mobile application share a Spring Boot backend. Spring Security handles authentication and authorization, while the service layer manages business rules and transactions.
+
+PostgreSQL stores application data through Spring Data JPA and Hibernate. The mobile app queues collections locally in SQLite when offline and synchronizes them when connectivity returns.
 
 ## Engineering Highlights
 
