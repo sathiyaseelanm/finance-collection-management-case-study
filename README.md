@@ -43,43 +43,21 @@ Daily collection operations need consistent records of loans, payments, outstand
 
 ### Web Application
 
-#### Dashboard
-![Dashboard](01-dashboard.png)
+| Dashboard | Customer management |
+|---|---|
+| ![Dashboard](01-dashboard.png) | ![Customer management](02-customers.png) |
+| **Loan management** | **Loan details** |
+| ![Loan management](06-loans.png) | ![Loan details](03-loan-details.png) |
+| **Daily collection entry** | **Bulk collection** |
+| ![Collection entry](04-collection-entry.png) | ![Bulk collection](05-bulk-collection.png) |
 
-#### Customer Management
-![Customer management](02-customers.png)
+### Mobile Application (field agents)
 
-#### Loan Management
-![Loan management](06-loans.png)
-
-#### Loan Details
-![Loan details](03-loan-details.png)
-
-#### Collection Entry
-![Collection entry](04-collection-entry.png)
-
-#### Bulk Collection
-![Bulk collection](05-bulk-collection.png)
-
-### Mobile Application
-
-#### Login and Home
-<p>
-  <img src="00-login.png" alt="Agent login" width="250">
-  <img src="01-home.png" alt="Agent home" width="250">
-</p>
-
-#### Collection Routes
-<p>
-  <img src="02-route.png" alt="Collection route overview" width="250">
-  <img src="03-route-stops.png" alt="Route stops and collection actions" width="250">
-</p>
-
-#### Daily Collections and Payment Entry
-<p>
-  <img src="04-collections-today.png" alt="Today's collections" width="250">
-  <img src="05-collect.png" alt="Record collection" width="250">
-</p>
+| Sign in | Home | Today's route |
+|---|---|---|
+| <img src="00-login.png" alt="Agent sign-in" width="250"> | <img src="01-home.png" alt="Agent home" width="250"> | <img src="02-route.png" alt="Collection route overview" width="250"> |
+| **Route stops** | **Today's collections** | **Record a collection** |
+| <img src="03-route-stops.png" alt="Route stops and collection actions" width="250"> | <img src="04-collections-today.png" alt="Today's collections" width="250"> | <img src="05-collect.png" alt="Record collection" width="250"> |
 
 ## Technology Stack
 
@@ -99,34 +77,84 @@ Daily collection operations need consistent records of loans, payments, outstand
 | Build and deployment | Maven, shell and Windows batch scripts (web app packaged into the backend JAR) |
 
 ## Architecture
+
+### System overview
+
 ```mermaid
 flowchart TD
-    Web["React Web Application"]
-    Mobile["Flutter Mobile Application"]
-    Local["SQLite Offline Collection Queue"]
-    API["Spring Boot REST API"]
-    Security["Spring Security and JWT"]
-    Services["Business Service Layer"]
-    Accounting["Double-Entry Journal Posting"]
-    Persistence["Spring Data JPA and Hibernate"]
-    DB["PostgreSQL"]
-    Reports["Report Views (refreshed on a schedule)"]
+    subgraph Clients["Clients"]
+        Web["React web application<br/>office staff"]
+        subgraph MobileApp["Flutter mobile application · field agents"]
+            Mobile["Screens and state<br/>Riverpod"]
+            Queue[("SQLite<br/>offline collection queue")]
+        end
+    end
 
-    Web -->|"HTTPS requests"| API
-    Mobile -->|"HTTPS requests and synchronization"| API
-    Mobile <-->|"Offline collections"| Local
-    API --> Security
-    Security --> Services
-    Services --> Accounting
-    Services --> Persistence
-    Accounting --> Persistence
-    Persistence --> DB
-    DB --> Reports
+    subgraph Backend["Spring Boot backend · modular monolith"]
+        Security["Security filters<br/>JWT authentication · rate limiting"]
+        Controllers["REST controllers<br/>input validation · permission checks"]
+        subgraph Modules["Business modules"]
+            Lending["Customers · Loans<br/>Collections · Routes"]
+            Accounting["Journals · Ledger<br/>Reports"]
+            Platform["Users and roles · Tenants<br/>Subscriptions · Audit"]
+        end
+        Jobs["Scheduled jobs<br/>overdue marking · report refresh"]
+    end
+
+    subgraph Data["PostgreSQL"]
+        Tables[("Tenant-scoped tables")]
+        Journal[("Journal entries<br/>partitioned by month")]
+        Views[("Materialized report views")]
+    end
+
+    Web -->|"HTTPS · JSON · JWT"| Security
+    Mobile -->|"HTTPS · JSON · JWT"| Security
+    Mobile <-->|"save when offline"| Queue
+    Queue -->|"sync when online"| Security
+    Security --> Controllers --> Modules
+    Lending -->|"posts double-entry journals"| Accounting
+    Modules --> Tables
+    Accounting --> Journal
+    Jobs --> Tables
+    Jobs --> Views
+    Accounting -.->|"reads"| Views
 ```
 
-The React web application and Flutter mobile application share one Spring Boot backend, organised as a modular monolith with a module per business area (customers, loans, collections, journals, ledger, reports, routes, users). Spring Security handles authentication and authorization, while the service layer applies business rules inside database transactions and posts the matching journal entries.
+- **Clients:** office staff use the React web application; field agents use the Flutter app, which saves collections in a local SQLite queue when there is no connection and synchronizes them later.
+- **Backend:** one Spring Boot application organised as a modular monolith, with a module per business area. Each module follows the same layers: controller, service (business rules and transactions), repository and entity, with MapStruct for DTO mapping.
+- **Security:** every request passes JWT authentication and rate limiting; controllers validate input and check permissions before any business logic runs.
+- **Data:** PostgreSQL with Flyway-versioned migrations. Every business table carries a tenant id; journal entries are partitioned by month; financial reports read materialized views so they stay fast as data grows.
+- **Background jobs:** overdue instalments are marked nightly and report views are refreshed every two hours.
+- **Deployment:** the web application is built into the backend JAR, so one process serves both the API and the web interface.
 
-PostgreSQL stores application data through Spring Data JPA and Hibernate. Financial reports read pre-computed views that are refreshed on a schedule, so they stay fast as data grows. The mobile app queues collections locally in SQLite when offline and synchronizes them when connectivity returns. For deployment, the web application is built into the same JAR as the backend and served from it.
+### Recording a collection, step by step
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Agent as Field agent
+    participant App as Mobile or web app
+    participant API as Spring Boot API
+    participant Service as Collection service
+    participant DB as PostgreSQL
+
+    Agent->>App: Enter today's payment for a loan
+    alt No internet connection (mobile app)
+        App->>App: Save to the SQLite queue and sync later
+    end
+    App->>API: POST /api/collections with JWT
+    API->>API: Verify token and tenant, validate input, check permission
+    API->>Service: Record collection
+    Note over Service,DB: One database transaction
+    Service->>DB: Check the loan is active and disbursed, amount within outstanding balance
+    Service->>DB: Save the collection and reduce the outstanding balance
+    Service->>DB: Post journal entry: debit Cash, credit Loan Receivable
+    Service->>DB: Mark the oldest unpaid instalments as paid
+    Service-->>API: Commit, or roll everything back if any step fails
+    API-->>App: 201 Created with the saved collection
+```
+
+A payment either updates the loan, the books and the instalment schedule together, or changes nothing. When a balance reaches zero, the loan closes automatically in the same transaction.
 
 ## Business Rules
 
