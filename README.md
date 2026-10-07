@@ -101,6 +101,16 @@ The React web application and Flutter mobile application share a Spring Boot bac
 
 PostgreSQL stores application data through Spring Data JPA and Hibernate. The mobile app queues collections locally in SQLite when offline and synchronizes them when connectivity returns.
 
+## Business Rules
+
+- A customer can have only one active loan at a time.
+- A new loan can be created after the existing loan is completed.
+- Loan records track the principal, agent commission, net disbursed amount, daily collection amount, and repayment period.
+- Collections cannot exceed the remaining outstanding balance.
+- Collection validation prevents duplicate payment records.
+- Each collection records its date, amount, collecting agent, and remarks.
+- Access to operations is controlled through roles and permissions.
+
 ## Engineering Highlights
 
 - JWT authentication with refresh-token handling
