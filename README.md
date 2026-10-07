@@ -18,6 +18,48 @@ Daily collection operations need consistent records of loans, payments, outstand
 - CSV, Excel, and PDF exports
 - Offline mobile collections with later synchronization
 
+## Application Screenshots
+
+### Web Application
+
+#### Dashboard
+![Dashboard](01-dashboard.png)
+
+#### Customer Management
+![Customer management](02-customers.png)
+
+#### Loan Management
+![Loan management](06-loans.png)
+
+#### Loan Details
+![Loan details](03-loan-details.png)
+
+#### Collection Entry
+![Collection entry](04-collection-entry.png)
+
+#### Bulk Collection
+![Bulk collection](05-bulk-collection.png)
+
+### Mobile Application
+
+#### Login and Home
+<p>
+  <img src="00-login.png" alt="Agent login" width="250">
+  <img src="01-home.png" alt="Agent home" width="250">
+</p>
+
+#### Collection Routes
+<p>
+  <img src="02-route.png" alt="Collection route overview" width="250">
+  <img src="03-route-stops.png" alt="Route stops and collection actions" width="250">
+</p>
+
+#### Daily Collections and Payment Entry
+<p>
+  <img src="04-collections-today.png" alt="Today's collections" width="250">
+  <img src="05-collect.png" alt="Record collection" width="250">
+</p>
+
 ## Technology Stack
 
 | Area | Technologies |
